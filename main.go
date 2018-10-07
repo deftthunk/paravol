@@ -1,11 +1,12 @@
 package main
 
 import (
-	"fmt"
-	"os"
-	"path/filepath"
-//	"log"
-//	"gopkg.in/yaml.v2"
+  "fmt"
+  "os"
+  "path/filepath"
+  "io/ioutil"
+  "gopkg.in/yaml.v2"
+  "log"
 //  "github.com/goinggo/tracelog"
 )
 
@@ -20,111 +21,114 @@ var sp = fmt.Sprint
 
 
 type dirWalk struct {
-	memdumpPath	string
-	resultsPath	string
-	profile     string
-	fileArr     [][]string
+  memdumpPath  string
+  resultsPath  string
+  profile     string
+  fileArr     [][]string
+}
+
+type Plugin struct {
+  Name      string    `yaml:"name"`
+  Pid       string    `yaml:"pid,omitempty"`
+  DumpPath  string    `yaml:"dump_path,omitempty"`
+  Address   string    `yaml:"address,omitempty"`
+}
+
+type Config struct {
+  Profile   string    `yaml:"profile"`
+  Memdumps  string    `yaml:"memdumps"`
+  OutPath   string    `yaml:"output"`
+  ProcPid   string    `yaml:"proc_pid"`
+  Modules   []Plugin  `yaml:"plugins"`
 }
 
 func newDirwalk() dirWalk {
-	dw := dirWalk {
-		memdumpPath:	"",
-		resultsPath:	"",
-		profile:			"",
-		fileArr:			make([][]string, 0),
-	}
-	return dw
+  dw := dirWalk {
+    memdumpPath:  "",
+    resultsPath:  "",
+    profile:      "",
+    fileArr:      make([][]string, 0),
+  }
+  return dw
 }
 
 func input(dw *dirWalk) {
-	var argFail string = ""
+  var argFail string = "Missing path to config.yaml"
+  var cfg Config = Config()
 
-	// instructions for program args
-	argFail += sp("Missing args:\n\t-Memory Dump Path")
-	argFail += sp("\n\t-Results Destination Folder Path")
-	argFail += sp("\n\t-Volatility Profile\n")
+  // count and parse CLI args
+  if len(os.Args) < 1 {
+    pl(argFail)
+    os.Exit(1)
+  }
 
-	// count and parse CLI args
-	if len(os.Args) > 1 {
-		dw.memdumpPath = os.Args[1]
-	} else {
-		pl(argFail)
-		os.Exit(1)
-	}
-	if len(os.Args) > 2 {
-		dw.resultsPath = os.Args[2]
-	} else {
-		pl(argFail)
-		os.Exit(1)
-	}
-	if len(os.Args) > 3 {
-		dw.profile = os.Args[3]
-	} else {
-		pl(argFail)
-		os.Exit(1)
-	}
+  cfgFile, err := ioutil.ReadFile(os.Args[1])
+  if err != nil {
+    log.Fatal(err)
+  }
 
-	// crawler func for folders (used below)
-	var walkFunc = func (path string, f os.FileInfo, err error) error {
-		fullFilepath = path
-		curFilename = filepath.Base(path)
-		fi, err := os.Stat(path)
+  file_err := yaml.Unmarshal(cfgFile, &cfg)
+  if file_err != nil {
+    log.Fatalf("error: %v", file_err)
+  }
 
-		if fi.IsDir() {
-			curParentDir = path
-		} else {
-			dw.fileArr = append(dw.fileArr, []string{fi.Name(), curParentDir})
-		}
-		return nil
-	}
+  // crawler func for folders (used below)
+  var walkFunc = func (path string, f os.FileInfo, err error) error {
+    fullFilepath = path
+    curFilename = filepath.Base(path)
+    fi, err := os.Stat(path)
 
-	// each file/dir is passed to walkFunc
-	filepath.Walk(dw.memdumpPath, walkFunc)
+    if fi.IsDir() {
+      curParentDir = path
+    } else {
+      dw.fileArr = append(dw.fileArr, []string{fi.Name(), curParentDir})
+    }
+    return nil
+  }
+
+  // each file/dir is passed to walkFunc
+  filepath.Walk(dw.memdumpPath, walkFunc)
 
 /*
-	pl("arch: ", dw.profile)
-	pl("curFilename: ", curFilename)
-	pl("fullFilepath: ", fullFilepath)
-	pl("curParentDir: ", curParentDir)
-	pl("resultsPath: ", dw.resultsPath)
-	pl("")
+  pl("arch: ", dw.profile)
+  pl("curFilename: ", curFilename)
+  pl("fullFilepath: ", fullFilepath)
+  pl("curParentDir: ", curParentDir)
+  pl("resultsPath: ", dw.resultsPath)
+  pl("")
 */
 }
 
 func main() {
-	dw := newDirwalk()
-	input(&dw)
+  dw := newDirwalk()
+  input(&dw)
 
-	pl(dw.fileArr)
+  pl(dw.fileArr)
 /*
-	for {
-		select {
-			case arr := <-inputCh:
-				pl("inputCh: ", arr)
-		}
-	}
+  for {
+    select {
+      case arr := <-inputCh:
+        pl("inputCh: ", arr)
+    }
+  }
 */
 }
-
-
-
-
 
 
 
 
 /*
 take input
-	-path to memdumps
-	-path to results folder
-	-vol profile
-	-config file (yaml?)
+  -path to memdumps
+  -path to results folder
+  -vol profile
+  -config file (yaml?)
 
 find memdump files in folder path
 
 kick off multiple vol processes
-	-make sure results are named according to memdump context
-	-handle reported errors gracefully
+  -make sure results are named according to memdump context
+  -handle reported errors gracefully
 
 show progress/status
 
