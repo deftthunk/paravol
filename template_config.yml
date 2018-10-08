@@ -1,2 +1,15 @@
 ---
+profile: Win10x64_17134
+state: base
+memdumps: ~/temp/paravol/wd/data/vbox
+output: ~/temp/paravol/wd/data/vol
+proc_pid: &pid 8192
+plugins:
+  - name: pslist
+    pid: *pid
+    address: 0x401303C
 
+  - name: memdump
+    pid: *pid
+
+  - name: psxview
