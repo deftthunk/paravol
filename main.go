@@ -30,12 +30,12 @@ type dirWalk struct {
 type Plugin struct {
   Name      string    `yaml:"name"`
   Pid       string    `yaml:"pid,omitempty"`
-  DumpPath  string    `yaml:"dump_path,omitempty"`
   Address   string    `yaml:"address,omitempty"`
 }
 
 type Config struct {
   Profile   string    `yaml:"profile"`
+	State			string		`yaml:"state"`
   Memdumps  string    `yaml:"memdumps"`
   OutPath   string    `yaml:"output"`
   ProcPid   string    `yaml:"proc_pid"`
@@ -54,7 +54,7 @@ func newDirwalk() dirWalk {
 
 func input(dw *dirWalk) {
   var argFail string = "Missing path to config.yaml"
-  var cfg Config = Config()
+	cfg := Config{}
 
   // count and parse CLI args
   if len(os.Args) < 1 {
