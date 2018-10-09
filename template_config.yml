@@ -13,3 +13,20 @@ plugins:
     pid: *pid
 
   - name: psxview
+    
+
+
+#type Config struct {
+#  Profile   string    `yaml:"profile"`
+#  Memdumps  string    `yaml:"memdumps"`
+#  OutPath   string    `yaml:"output"`
+#  ProcPid   string    `yaml:"proc_pid"`
+#  Modules   []Plugin  `yaml:"plugins"`
+#}
+#
+# #type Plugin struct {
+#  Name      string    `yaml:"name"`
+#  Pid       string    `yaml:"pid,omitempty"`
+#  DumpPath  string    `yaml:"dump_path,omitempty"`
+#  Address   string    `yaml:"address,omitempty"`
+#}

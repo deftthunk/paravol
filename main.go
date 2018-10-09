@@ -14,18 +14,10 @@ import (
 var curParentDir string = ""
 var curFilename string = ""
 var fullFilepath string = ""
-// aliases
 var pl = fmt.Println
 var pf = fmt.Printf
 var sp = fmt.Sprint
 
-
-type dirWalk struct {
-  memdumpPath  string
-  resultsPath  string
-  profile     string
-  fileArr     [][]string
-}
 
 type Plugin struct {
   Name      string    `yaml:"name"`
@@ -35,26 +27,18 @@ type Plugin struct {
 
 type Config struct {
   Profile   string    `yaml:"profile"`
-	State			string		`yaml:"state"`
+  State     string    `yaml:"state"`
   Memdumps  string    `yaml:"memdumps"`
   OutPath   string    `yaml:"output"`
   ProcPid   string    `yaml:"proc_pid"`
   Modules   []Plugin  `yaml:"plugins"`
 }
 
-func newDirwalk() dirWalk {
-  dw := dirWalk {
-    memdumpPath:  "",
-    resultsPath:  "",
-    profile:      "",
-    fileArr:      make([][]string, 0),
-  }
-  return dw
-}
 
-func input(dw *dirWalk) {
+func input() [][]string {
   var argFail string = "Missing path to config.yaml"
-	cfg := Config{}
+  cfg := Config{}
+  dumpFiles := make([][]string, 0)
 
   // count and parse CLI args
   if len(os.Args) < 1 {
@@ -81,29 +65,23 @@ func input(dw *dirWalk) {
     if fi.IsDir() {
       curParentDir = path
     } else {
-      dw.fileArr = append(dw.fileArr, []string{fi.Name(), curParentDir})
+      dumpFiles = append(dumpFiles, []string{fi.Name(), curParentDir})
     }
+
     return nil
   }
 
   // each file/dir is passed to walkFunc
-  filepath.Walk(dw.memdumpPath, walkFunc)
+  memDumpPath := filepath.Join(cfg.Memdumps, cfg.State)
+  err := filepath.Walk(memDumpPath, walkFunc)
 
-/*
-  pl("arch: ", dw.profile)
-  pl("curFilename: ", curFilename)
-  pl("fullFilepath: ", fullFilepath)
-  pl("curParentDir: ", curParentDir)
-  pl("resultsPath: ", dw.resultsPath)
-  pl("")
-*/
+  return dumpFiles
 }
 
 func main() {
-  dw := newDirwalk()
-  input(&dw)
+  dumpFiles := input()
+  pl(dumpFiles)
 
-  pl(dw.fileArr)
 /*
   for {
     select {
@@ -115,23 +93,7 @@ func main() {
 }
 
 
-
-
 /*
-take input
-  -path to memdumps
-  -path to results folder
-  -vol profile
-  -config file (yaml?)
-
-find memdump files in folder path
-
-kick off multiple vol processes
-  -make sure results are named according to memdump context
-  -handle reported errors gracefully
-
-show progress/status
-
 volatility example:
 python vol/vol.py --profile=Win10x64 -f /media/folder/dumps --output-file=/nhome/me/results malfind
 */
