@@ -3,6 +3,7 @@ package main
 import (
   "fmt"
   "os"
+  "strings"
   "path/filepath"
   "io/ioutil"
   "gopkg.in/yaml.v2"
@@ -26,8 +27,9 @@ type Plugin struct {
 }
 
 type Config struct {
+  Threads   int       `yaml:"threads"`
   Profile   string    `yaml:"profile"`
-  State     string    `yaml:"state"`
+  States    string    `yaml:"states"`
   Memdumps  string    `yaml:"memdumps"`
   OutPath   string    `yaml:"output"`
   ProcPid   string    `yaml:"proc_pid"`
@@ -35,10 +37,9 @@ type Config struct {
 }
 
 
-func input() [][]string {
+func input() Config {
   var argFail string = "Missing path to config.yaml"
   cfg := Config{}
-  dumpFiles := make([][]string, 0)
 
   // count and parse CLI args
   if len(os.Args) < 1 {
@@ -46,21 +47,40 @@ func input() [][]string {
     os.Exit(1)
   }
 
+  // open config
   cfgFile, err := ioutil.ReadFile(os.Args[1])
   if err != nil {
     log.Fatal(err)
   }
 
-  file_err := yaml.Unmarshal(cfgFile, &cfg)
-  if file_err != nil {
-    log.Fatalf("error: %v", file_err)
+  // parse yaml into struct
+  decode_err := yaml.Unmarshal(cfgFile, &cfg)
+  if decode_err != nil {
+    log.Fatalf("error: %v", decode_err)
   }
+
+  return cfg
+}
+
+
+func (c Config) findDumps() [][]string {
+  // [[file, path], [file, path]]
+  dumpFiles := make([][]string, 0)
 
   // crawler func for folders (used below)
   var walkFunc = func (path string, f os.FileInfo, err error) error {
     fullFilepath = path
     curFilename = filepath.Base(path)
     fi, err := os.Stat(path)
+
+    if err != nil {
+      pl("os.Stat(): Error on path ", path)
+      pl("Error: ", err.Error())
+      if os.IsNotExist(err) {
+        pl("Folder does not exist")
+      }
+      os.Exit(1)
+    }
 
     if fi.IsDir() {
       curParentDir = path
@@ -72,24 +92,47 @@ func input() [][]string {
   }
 
   // each file/dir is passed to walkFunc
-  memDumpPath := filepath.Join(cfg.Memdumps, cfg.State)
-  err := filepath.Walk(memDumpPath, walkFunc)
+  states := strings.Fields(c.States)
+
+  for _, s := range states {
+    memDumpPath := filepath.Join(c.Memdumps, s)
+    err := filepath.Walk(memDumpPath, walkFunc)
+
+    if err != nil {
+      log.Fatalf("Error: %v", err)
+    }
+  }
 
   return dumpFiles
 }
 
-func main() {
-  dumpFiles := input()
-  pl(dumpFiles)
 
-/*
-  for {
-    select {
-      case arr := <-inputCh:
-        pl("inputCh: ", arr)
-    }
+func (c Config) buildCommands([][]string) []string {
+  volBin := 'vol.py'
+  filenameFlag := '--filename='
+  outputFileFlag := '--output-file='
+  verboseFlag := '--verbose'
+  modAddressFlag := '--addr='
+  modprofileFlag := '--profile='
+  modpidFlag := '--pid='
+  modoffsetFlag := '--offset='
+  modprocNameFlag := '--name='
+  moddumpDirFlag := '--dump-dir='
+  modvadBaseAddrFlag := '--base='
+  modDllDumpRebaseFlag := '--fix'
+  modDllDumpMemoryFlag := '--memory'
+}
+
+func main() {
+  c := input()
+  c.buildCommands(c.findDumps())
+
+  pl(dumpFiles)
+  pl(c)
+  pl()
+  for _, plugin := range c.Modules {
+    pl("Plugin Name: ", plugin.Name)
   }
-*/
 }
 
 
@@ -97,8 +140,5 @@ func main() {
 volatility example:
 python vol/vol.py --profile=Win10x64 -f /media/folder/dumps --output-file=/nhome/me/results malfind
 */
-
-
-
 
 

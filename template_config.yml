@@ -1,8 +1,9 @@
 ---
+threads: 3
 profile: Win10x64_17134
-state: base
-memdumps: ~/temp/paravol/wd/data/vbox
-output: ~/temp/paravol/wd/data/vol
+states: base installed removed
+memdumps: /home/bruce/temp/paravol/wd/data/vbox
+output: /home/bruce/temp/paravol/wd/data/vol
 proc_pid: &pid 8192
 plugins:
   - name: pslist
@@ -16,17 +17,3 @@ plugins:
     
 
 
-#type Config struct {
-#  Profile   string    `yaml:"profile"`
-#  Memdumps  string    `yaml:"memdumps"`
-#  OutPath   string    `yaml:"output"`
-#  ProcPid   string    `yaml:"proc_pid"`
-#  Modules   []Plugin  `yaml:"plugins"`
-#}
-#
-# #type Plugin struct {
-#  Name      string    `yaml:"name"`
-#  Pid       string    `yaml:"pid,omitempty"`
-#  DumpPath  string    `yaml:"dump_path,omitempty"`
-#  Address   string    `yaml:"address,omitempty"`
-#}
