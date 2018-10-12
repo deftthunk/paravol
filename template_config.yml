@@ -1,19 +1,183 @@
 ---
 threads: 3
-profile: Win10x64_17134
+profile: Win10x64-17134
 states: base installed removed
 memdumps: /home/bruce/temp/paravol/wd/data/vbox
 output: /home/bruce/temp/paravol/wd/data/vol
-proc_pid: &pid 8192
+proc-pid: &pid 8192
 plugins:
-  - name: pslist
-    pid: *pid
-    address: 0x401303C
+  - plugin: amcache
+    hive-offset: 0x401000
 
-  - name: memdump
+  - plugin: apihooks
+    offset: 0x401000
     pid: *pid
+    name: pname
+    fix: 
+    quick: 
+    no-whitelist: 
+    skip-kernel: 
+    skip-process: 
 
-  - name: psxview
+  - plugin: atoms
+
+  - plugin: atomscan
+    virtual: 
+    show-unallocated: 
+    start-address: 0x100
+    length: 0x100
+    offset: 0x1000
+
+  - plugin: bioskbd
+
+  - plugin: cachedump
+    sys-offset: value
+    sec-offset: value
+
+  - plugin: callbacks
+
+  - plugin: cmdscan
+    max-history: 50
+
+  - plugin: connections
+    physical-offset: 
+
+  - plugin: consoles
+    history-buffers: 4
+
+  - plugin: dlldump
+    dump-dir: path/to/dump
+    regex: [Rr]egex
+    ignore-case: 
+    base: 0x0000
+
+  - plugin: drivermodule
+    addr: 0x000
+
+  - plugin: dumpcerts
+    ssl: 
+    physical: 
+
+  - plugin: dumpfiles
+    physoffset: 1234
+    summary-file: filename
+    unsafe: 
+    filter: val1,val2,val3
+
+  - plugin: dumpregistry
+    hive-offset: 0x1234
+
+  - plugin: envars
+    silent: 
+
+  - plugin: handles
+    object-type: type1,type2,type3
+
+  - plugin: hashdump
+    sam-offset: 0x101010
+
+  - plugin: imagecopy
+    blocksize: 52500
+    output-image: imageName
+    count: 
+
+  - plugin: impscan
+    size: 54321
+
+  - plugin: joblinks
+    physical-offset: 
+
+  - plugin: lsadump
+    sec-offset: 0x010101
+
+  - plugin: malfind
+    max-size: 12345
+    refined: 
+  
+  - plugin: mbrparser
+    hex: 
+    hash: 6acc9fad5481
+    fullhash: 6aac9fad
+    disoffset: 12345
+    nocheck: 
+    disk: string
+    maxdistance: 12345
+    zerostart: 
+
+  - plugin: mftparser
+    nocheck: 
+    machine: machineName
+    debugout: 
+
+  - plugin: moddump
+    unsafe: 
+    memory: 
+
+  - plugin: modscan
+    virtual: 
+
+  - plugin: mutantscan
+    silent: 
+
+  - plugin: poolpeek
+    tag: tag
+    min-size: 01234
+    paged: 
+
+  - plugin: printkey
+    key: reg/key
+
+  - plugin: psxview
+    apply-rules: 
+
+  - plugin: raw2dmp
+    output-image: imageName
+
+  - plugin: strings
+    string-file: filename
+    scan: 
+    lookup-pid: 
+   
+  - plugin: threads
+    listtags: 
     
+  - plugin: timeliner
+    hive: hive
+    user: username
+    type: t1,t2,t3
+    
+  - plugin: timers
+    listhead: 0x8383
+    
+  - plugin: userhandles
+    free: 
+    
+  - plugin: yarascan
+    all: 
+    case: 
+    kernel: 
+    wide: 
+    yara-rules: a string
+    yara-file: filename
+    reverse: 01234
+    
+  - plugin: 
+    
+  - plugin: 
+    
+  - plugin: 
+    
+  - plugin: 
+    
+  - plugin: 
+    
+  - plugin: 
+    
+  - plugin: 
+    
+  - plugin: 
+    
+
+   
 
 

@@ -21,7 +21,7 @@ var sp = fmt.Sprint
 
 
 type Plugin struct {
-  Name      string    `yaml:"name"`
+  Name      string    `yaml:"plugin"`
   Pid       string    `yaml:"pid,omitempty"`
   Address   string    `yaml:"address,omitempty"`
 }
