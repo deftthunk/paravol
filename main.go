@@ -4,6 +4,7 @@ import (
   "fmt"
   "os"
   "strings"
+  "reflect"
   "path/filepath"
   "io/ioutil"
   "gopkg.in/yaml.v2"
@@ -51,9 +52,9 @@ type Plugin struct {
   PhysOffset      string    `yaml:"physoffset,omitempty"`
   SummaryFile     string    `yaml:"summary-file,omitempty"`
   Unsafe          string    `yaml:"unsafe,omitempty"`
-  Filter          []string    `yaml:"filter,omitempty"`
+  Filter          []string  `yaml:"filter,omitempty"`
   Silent          string    `yaml:"silent,omitempty"`
-  ObjectType      []string    `yaml:"object-type,omitempty"`
+  ObjectType      []string  `yaml:"object-type,omitempty"`
   SamOffset       string    `yaml:"sam-offset,omitempty"`
   BlockSize       string    `yaml:"blocksize,omitempty"`
   OutputImage     string    `yaml:"output-image,omitempty"`
@@ -77,7 +78,6 @@ type Plugin struct {
   Paged           string    `yaml:"paged,omitempty"`
   Key             string    `yaml:"key,omitempty"`
   ApplyRules      string    `yaml:"apply-rules,omitempty"`
-  OutputImage     string    `yaml:"output-image,omitempty"`
   StringFile      string    `yaml:"string-file,omitempty"`
   Scan            string    `yaml:"scan,omitempty"`
   LookupPid       string    `yaml:"lookup-pid,omitempty"`
@@ -97,16 +97,19 @@ type Plugin struct {
 }
 
 type Config struct {
-  Threads   int       `yaml:"threads"`
-  Profile   string    `yaml:"profile"`
-  States    string    `yaml:"states"`
-  Memdumps  string    `yaml:"memdumps"`
-  OutPath   string    `yaml:"output"`
-  ProcPid   string    `yaml:"proc_pid"`
-  Modules   []Plugin  `yaml:"plugins"`
+  Threads     int       `yaml:"threads"`
+  Profile     string    `yaml:"profile"`
+  SubFolders  string    `yaml:"subfolders"`
+  Memdumps    string    `yaml:"memdumps"`
+  OutPath     string    `yaml:"output"`
+  ProcPid     string    `yaml:"proc_pid"`
+  Modules     []Plugin    `yaml:"plugins"`
 }
 
 
+/*
+  grab YAML file and decode into structs
+*/
 func input() Config {
   var argFail string = "Missing path to config.yaml"
   cfg := Config{}
@@ -133,6 +136,10 @@ func input() Config {
 }
 
 
+/*
+  returns 2D array of dumpfiles in the format of 
+  [[filename, path] [filename, path]]
+*/
 func (c Config) findDumps() [][]string {
   // [[file, path], [file, path]]
   dumpFiles := make([][]string, 0)
@@ -155,16 +162,16 @@ func (c Config) findDumps() [][]string {
     if fi.IsDir() {
       curParentDir = path
     } else {
-      dumpFiles = append(dumpFiles, []string{fi.Name(), curParentDir})
+      dumpFiles = append(dumpFiles, []string{curParentDir, fi.Name()})
     }
 
     return nil
   }
 
   // each file/dir is passed to walkFunc
-  states := strings.Fields(c.States)
+  subFolders := strings.Fields(c.SubFolders)
 
-  for _, s := range states {
+  for _, s := range subFolders {
     memDumpPath := filepath.Join(c.Memdumps, s)
     err := filepath.Walk(memDumpPath, walkFunc)
 
@@ -177,38 +184,101 @@ func (c Config) findDumps() [][]string {
 }
 
 
-func (c Config) buildCommands([][]string) []string {
-  volBin := 'vol.py'
-  filenameFlag := '--filename='
-  outputFileFlag := '--output-file='
-  verboseFlag := '--verbose'
-  modAddressFlag := '--addr='
-  modprofileFlag := '--profile='
-  modpidFlag := '--pid='
-  modoffsetFlag := '--offset='
-  modprocNameFlag := '--name='
-  moddumpDirFlag := '--dump-dir='
-  modvadBaseAddrFlag := '--base='
-  modDllDumpRebaseFlag := '--fix'
-  modDllDumpMemoryFlag := '--memory'
+/*
+  Convert Plugin struct fields into an array of values. Array conversion
+  allows for iteration and automatic building of command string using config
+  values.
+*/
+func convertStruct(p Plugin) []interface{} {
+  v := reflect.ValueOf(p)
+  values := make([]interface{}, v.NumField())
+
+  for i:=0; i < v.NumField(); i++ {
+    values[i] = v.Field(i).Interface()
+  }
+
+  //pl(values)
+  return values
 }
+
+
+/*
+  build volatility command for each 'state' memory dump listed
+*/
+func (c Config) buildCommands(dumpFiles [][]string) []string {
+  var commands []string
+
+/*  for _, pathArr := range dumpFiles {
+    // basic command info
+    cmdString := []string {"vol.py",
+      " --profile=", c.Profile,
+      " --filename=", strings.Join(pathArr, "/"),
+      " --verbose",
+    }
+*/
+
+    // per plugin command strings
+    for _, plugin := range c.Modules {
+      pluginArr := convertStruct(plugin)
+      pl(pluginArr)
+      //pl(plugin)
+    }
+
+//  }
+
+  return commands
+}
+
+
+func test() {
+  var cfgMap map[string]interface{}
+
+  // open config
+  cfgFile, err := ioutil.ReadFile(os.Args[1])
+  if err != nil {
+    log.Fatal(err)
+  }
+
+  // parse yaml into struct
+  decode_err := yaml.Unmarshal(cfgFile, &cfgMap)
+  if decode_err != nil {
+    log.Fatalf("error: %v", decode_err)
+  }
+
+  for i,j := range cfgMap {
+    if i == "plugins" {
+      pl("j: ", reflect.TypeOf(j))
+      arr, _ := j.([]map[string]string)
+      pl("arr", reflect.TypeOf(arr))
+      for w,x := range arr {
+        pl("w :", reflect.TypeOf(w))
+        pl("x :", reflect.TypeOf(x))
+        for y,z := range x {
+          pl("y - z: ", reflect.TypeOf(y), " - ", reflect.TypeOf(z))
+        }
+      }
+    }
+  }
+}
+
 
 func main() {
   c := input()
+//  verifyConfig(c)
   c.buildCommands(c.findDumps())
 
-  pl(dumpFiles)
-  pl(c)
-  pl()
-  for _, plugin := range c.Modules {
-    pl("Plugin Name: ", plugin.Name)
-  }
+  test()
 }
 
 
 /*
 volatility example:
-python vol/vol.py --profile=Win10x64 -f /media/folder/dumps --output-file=/nhome/me/results malfind
+python vol/vol.py --verbose --profile=Win10x64 -f /media/folder/dumps --output-file=/nhome/me/results malfind
 */
+
+
+
+
+
 
 

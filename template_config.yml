@@ -1,7 +1,7 @@
 ---
 threads: 3
 profile: Win10x64-17134
-states: base installed removed
+subfolders: base installed removed
 memdumps: /home/bruce/temp/paravol/wd/data/vbox
 output: /home/bruce/temp/paravol/wd/data/vol
 proc-pid: &pid 8192
