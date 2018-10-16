@@ -1,14 +1,14 @@
 # Comment test
-# hexadecimal, regex, and blank values must be double quoted
+# hexadecimal, regex, integers, and blank values must be double quoted
 ---
-threads: 3
+threads: "3"
 profile: Win10x64-17134
 kdbg: "0x4040404"
 dtb: "0x494949"
 subfolders: base installed removed
 memdumps: /home/bruce/temp/paravol/wd/data/vbox
 output: /home/bruce/temp/paravol/wd/data/vol
-proc-pid: &pid 8192
+proc-pid: &pid "8192"
 plugins:
   - plugin: amcache
     hive-offset: "0x401000"
@@ -41,13 +41,13 @@ plugins:
   - plugin: callbacks
 
   - plugin: cmdscan
-    max-history: 50
+    max-history: "50"
 
   - plugin: connections
     physical-offset: ""
 
   - plugin: consoles
-    history-buffers: 4
+    history-buffers: "4"
 
   - plugin: dlldump
     dump-dir: path/to/dump
@@ -63,7 +63,7 @@ plugins:
     physical: ""
 
   - plugin: dumpfiles
-    physoffset: 1234
+    physoffset: "1234"
     summary-file: filename
     unsafe: ""
     filter: val1,val2,val3
@@ -81,12 +81,12 @@ plugins:
     sam-offset: "0x101010"
 
   - plugin: imagecopy
-    blocksize: 52500
+    blocksize: "52500"
     output-image: imageName
     count: ""
 
   - plugin: impscan
-    size: 54321
+    size: "54321"
 
   - plugin: joblinks
     physical-offset: ""
@@ -95,17 +95,17 @@ plugins:
     sec-offset: "0x010101"
 
   - plugin: malfind
-    max-size: 12345
+    max-size: "12345"
     refined: ""
   
   - plugin: mbrparser
     hex: ""
     hash: 6acc9fad5481
     fullhash: 6aac9fad
-    disoffset: 12345
+    disoffset: "12345"
     nocheck: ""
     disk: string
-    maxdistance: 12345
+    maxdistance: "12345"
     zerostart: ""
 
   - plugin: mftparser
@@ -125,7 +125,7 @@ plugins:
 
   - plugin: poolpeek
     tag: tag
-    min-size: 01234
+    min-size: "01234"
     paged: ""
 
   - plugin: printkey
@@ -163,5 +163,5 @@ plugins:
     wide: ""
     yara-rules: a string
     yara-file: filename
-    reverse: 01234
+    reverse: "01234"
     

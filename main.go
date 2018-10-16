@@ -24,8 +24,10 @@ var sp = fmt.Sprint
 /*
   grab YAML file and decode into structs
 */
-func input() {
+func input() (map[string]string, map[string]string) {
   var cfgMap map[string]interface{}
+  var options map[string]string
+  var plugins map[string]string
 
   // count and parse CLI args
   if len(os.Args) < 1 {
@@ -45,49 +47,41 @@ func input() {
     log.Fatalf("error: %v", decode_err)
   }
 
-  convertToMap(cfgMap)
-//  return
-}
+  // initialize options and plugins maps
+  vOptions := reflect.ValueOf(cfgMap)
+  options = make(map[string]string, vOptions.Len()-1)
+  vPlugins := reflect.ValueOf(cfgMap["plugins"])
+  plugins = make(map[string]string, vPlugins.Len()-1)
 
-func convertToMap(c map[string]interface{}) {
-  for k, v := range c {
+  /*
+    walk through unmarshaled map; data is a 
+    map[string]interface{} with one member "plugins" 
+    being of type []interface{}, which is an array of
+    plugins in the form of map[interface{}]interface{}
+  */
+  for k, v := range cfgMap {
     if s, ok := v.(string); ok && s != "" {
       pl("key: ", k, "val: ", s)
-    } else if s, ok := v.(int); ok {
-      pl("key: ", k, "val: ", s)
+      options[k] = s
     } else if s, ok := v.([]interface{}); ok {
-      test2(s)
+    // iterate over "Plugins:" sub-config
+      for _, j := range s {
+        pl("ValueOf: ", reflect.ValueOf(j))
+        k := j.(map[interface{}]interface{})
+
+        for g, h := range k {
+          pl("I/V: ", reflect.ValueOf(g), reflect.ValueOf(h))
+          plugins[g.(string)] = h.(string)
+        }
+      }
+    // check type DEBUG
     } else {
       pl("what am i: ", reflect.TypeOf(v))
     }
   }
+
+  return options, plugins
 }
-
-func test2(c []interface{}) {
-  // iterate over "Plugins:" sub-config
-  for _, j := range c {
-    pl("ValueOf: ", reflect.ValueOf(j))
-    k := j.(map[interface{}]interface{})
-
-    for g, h := range k {
-      pl("I/V: ", reflect.ValueOf(g), reflect.ValueOf(h))
-    }
-  }
-}
-
-func convertToArray(c []interface{}) {
-  for i, v := range c {
-    if s, ok := v.(string); ok {
-      pl("idx: ", i, "val: ", s)
-    } else if s, ok := v.(int); ok {
-      pl("idx: ", i, "val: ", s)
-    } else {
-      pl("what is this: ", reflect.TypeOf(v))
-    }
-  }
-}
-
-
 
 
 /*
@@ -185,38 +179,17 @@ func buildCommands(dumpFiles [][]string) []string {
 }
 
 
-// test struct-less yaml parsing
-func test() {
-  var cfgMap map[string]interface{}
-
-  // open config
-  cfgFile, err := ioutil.ReadFile(os.Args[1])
-  if err != nil {
-    log.Fatal(err)
-  }
-
-  // parse yaml into struct
-  decode_err := yaml.Unmarshal(cfgFile, &cfgMap)
-  if decode_err != nil {
-    log.Fatalf("error: %v", decode_err)
-  }
-
-  for k, v := range cfgMap {
-    if s, ok := v.(string); ok && s != "" {
-      pl("key: ", k, "val: ", s)
-    } else if s, ok := v.(int); ok {
-      pl("key: ", k, "val: ", s)
-    }
-  }
-}
-
 
 func main() {
-//  c := input()
+  options, plugins := input()
+
+  pl("")
+  pl("options: ", options)
+  pl("")
+  pl("plugins: ", plugins)
+
 //  verifyConfig(c)
 //  c.buildCommands(c.findDumps())
-input()
-//  test()
 }
 
 
