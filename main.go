@@ -65,14 +65,16 @@ func input() (map[string]string, []map[string]string) {
       // each value is a map of plugin config values
       configArr := ta
 
+      // array of interfaces
       for _, cMap := range configArr {
         obj := reflect.ValueOf(cMap)
         tmpMap := make(map[string]string, obj.Len() - 1)
 //        pl("ValueOf: ", reflect.ValueOf(cMap))
         k := cMap.(map[interface{}]interface{})
 
+        // map[interface]interface
         for kPlu, vPlu := range k {
-//          pl("I/V: ", reflect.ValueOf(kPlu), reflect.ValueOf(vPlu))
+          pl("I/V: ", reflect.ValueOf(kPlu), reflect.ValueOf(vPlu))
           tmpMap[kPlu.(string)] = vPlu.(string)
         }
         plugins = append(plugins, tmpMap)
@@ -162,12 +164,14 @@ func buildCommands(dumpFiles [][]string, opt map[string]string, plu []map[string
     // iterate through supplied plugin maps in 'plu' slice
     for _, pMap := range plu {
       var pluString []string
+      var interString []string
       // create plugin string place plugin name in front of its options
       pluString = append(pluString, pMap["plugin"])
-      delete(pMap, "plugin")
 
       // add plugin options to command string
       for field, val := range pMap {
+        // skip re-adding the plugin name
+        if field == "plugin" { continue }
         hField := fixField(field)
         var newStr string
 
@@ -178,14 +182,16 @@ func buildCommands(dumpFiles [][]string, opt map[string]string, plu []map[string
           newStr = hField
         }
         pluString = append(pluString, newStr)
-        pl("pluString: ", pluString)
+//        pl("pluString: ", pluString)
       }
-      // need intermediate optString for each pMap
-      commands = append(commands, strings.Join(optString, ""))
-//      optString = append(optString, strings.Join(pluString, " "))
-//      pl("optString: ", optString)
+      interString = append(interString,
+        strings.Join(optString, ""),
+        " ",
+        strings.Join(pluString, " "),
+      )
+
+      commands = append(commands, strings.Join(interString, ""))
     }
-//    commands = append(commands, strings.Join(optString, ""))
   }
 
   return commands

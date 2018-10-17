@@ -27,7 +27,7 @@ plugins:
 
   - plugin: atomscan
     virtual: ""
-    show-unallocated: 
+    show-unallocated: ""
     start-address: "0x100"
     length: "0x100"
     offset: "0x1000"
@@ -52,7 +52,7 @@ plugins:
   - plugin: dlldump
     dump-dir: path/to/dump
     regex: "[Rr]egex"
-    ignore-case: 
+    ignore-case: ""
     base: "0x0000"
 
   - plugin: drivermodule
