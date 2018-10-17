@@ -3,16 +3,15 @@ package main
 import (
   "fmt"
   "os"
-//  "strings"
+  "strings"
   "reflect"
-//  "path/filepath"
+  "path/filepath"
   "io/ioutil"
   "gopkg.in/yaml.v2"
   "log"
 //  "github.com/goinggo/tracelog"
 )
 
-// globals
 var curParentDir string = ""
 var curFilename string = ""
 var fullFilepath string = ""
@@ -21,13 +20,12 @@ var pf = fmt.Printf
 var sp = fmt.Sprint
 
 
-/*
-  grab YAML file and decode into structs
-*/
-func input() (map[string]string, map[string]string) {
+/* grab YAML file and decode into structs */
+
+func input() (map[string]string, []map[string]string) {
   var cfgMap map[string]interface{}
   var options map[string]string
-  var plugins map[string]string
+  var plugins []map[string]string
 
   // count and parse CLI args
   if len(os.Args) < 1 {
@@ -50,33 +48,38 @@ func input() (map[string]string, map[string]string) {
   // initialize options and plugins maps
   vOptions := reflect.ValueOf(cfgMap)
   options = make(map[string]string, vOptions.Len()-1)
-  vPlugins := reflect.ValueOf(cfgMap["plugins"])
-  plugins = make(map[string]string, vPlugins.Len()-1)
 
-  /*
-    walk through unmarshaled map; data is a 
+/*  walk through unmarshaled map; data is a 
     map[string]interface{} with one member "plugins" 
     being of type []interface{}, which is an array of
-    plugins in the form of map[interface{}]interface{}
-  */
-  for k, v := range cfgMap {
-    if s, ok := v.(string); ok && s != "" {
-      pl("key: ", k, "val: ", s)
-      options[k] = s
-    } else if s, ok := v.([]interface{}); ok {
-    // iterate over "Plugins:" sub-config
-      for _, j := range s {
-        pl("ValueOf: ", reflect.ValueOf(j))
-        k := j.(map[interface{}]interface{})
+    plugins in the form of map[interface{}]interface{}.
+    each structure is type asserted (ta) into concrete type */
 
-        for g, h := range k {
-          pl("I/V: ", reflect.ValueOf(g), reflect.ValueOf(h))
-          plugins[g.(string)] = h.(string)
+  for kOp, vOp := range cfgMap {
+    // distinguish string values from arrays
+    if ta, ok := vOp.(string); ok && ta != "" {
+//      pl("key: ", kOp, "val: ", ta)
+      options[kOp] = ta
+    } else if ta, ok := vOp.([]interface{}); ok {
+      // iterate over "Plugins:" sub-config array
+      // each value is a map of plugin config values
+      configArr := ta
+
+      for _, cMap := range configArr {
+        obj := reflect.ValueOf(cMap)
+        tmpMap := make(map[string]string, obj.Len() - 1)
+//        pl("ValueOf: ", reflect.ValueOf(cMap))
+        k := cMap.(map[interface{}]interface{})
+
+        for kPlu, vPlu := range k {
+//          pl("I/V: ", reflect.ValueOf(kPlu), reflect.ValueOf(vPlu))
+          tmpMap[kPlu.(string)] = vPlu.(string)
         }
+        plugins = append(plugins, tmpMap)
       }
-    // check type DEBUG
     } else {
-      pl("what am i: ", reflect.TypeOf(v))
+      // catch anything else
+      pl("what am i: ", reflect.TypeOf(vOp))
     }
   }
 
@@ -84,14 +87,15 @@ func input() (map[string]string, map[string]string) {
 }
 
 
-/*
-  returns 2D array of dumpfiles in the format of 
-  [[filename, path] [filename, path]]
-*/
-/*
-func findDumps() [][]string {
-  // [[file, path], [file, path]]
+/*  returns 2D array of dumpfiles in the format of 
+    [[path, filename] [path, filename]] */
+
+func findDumps(options map[string]string) [][]string {
+  // [[path, filename] [path, filename]]
   dumpFiles := make([][]string, 0)
+  var fullFilepath string
+  var curFilename string
+  var curParentDir string
 
   // crawler func for folders (used below)
   var walkFunc = func (path string, f os.FileInfo, err error) error {
@@ -118,10 +122,10 @@ func findDumps() [][]string {
   }
 
   // each file/dir is passed to walkFunc
-  subFolders := strings.Fields(c.SubFolders)
+  subFolders := strings.Fields(options["subfolders"])
 
   for _, s := range subFolders {
-    memDumpPath := filepath.Join(c.Memdumps, s)
+    memDumpPath := filepath.Join(options["memdumps"], s)
     err := filepath.Walk(memDumpPath, walkFunc)
 
     if err != nil {
@@ -131,65 +135,72 @@ func findDumps() [][]string {
 
   return dumpFiles
 }
-*/
 
-/*
-  Convert Plugin struct fields into an array of values. Array conversion
-  allows for iteration and automatic building of command string using config
-  values.
-func convertStruct(p Plugin) []interface{} {
-  v := reflect.ValueOf(p)
-  values := make([]interface{}, v.NumField())
 
-  for i:=0; i < v.NumField(); i++ {
-    values[i] = v.Field(i).Interface()
-  }
-
-  //pl(values)
-  return values
+func fixField(f string) string {
+  hyphens := "--" + f
+  return hyphens
 }
-*/
 
 
-/*
-  build volatility command for each 'state' memory dump listed
-*/
-func buildCommands(dumpFiles [][]string) []string {
+/*  build volatility command for each memory dump */
+
+func buildCommands(dumpFiles [][]string, opt map[string]string, plu []map[string]string) []string {
   var commands []string
 
-/*  for _, pathArr := range dumpFiles {
+  for _, pathArr := range dumpFiles {
+    var optString []string
+
     // basic command info
-    cmdString := []string {"vol.py",
-      " --profile=", c.Profile,
+    optString = append(optString,
+      "vol.py",
+      " --profile=", opt["profile"],
       " --filename=", strings.Join(pathArr, "/"),
       " --verbose",
+    )
+
+    // iterate through supplied plugin maps in 'plu' slice
+    for _, pMap := range plu {
+      var pluString []string
+      // create plugin string place plugin name in front of its options
+      pluString = append(pluString, pMap["plugin"])
+      delete(pMap, "plugin")
+
+      // add plugin options to command string
+      for field, val := range pMap {
+        hField := fixField(field)
+        var newStr string
+
+        if val != "" {
+          str := []string{hField, val}
+          newStr = strings.Join(str, "=")
+        } else {
+          newStr = hField
+        }
+        pluString = append(pluString, newStr)
+        pl("pluString: ", pluString)
+      }
+      // need intermediate optString for each pMap
+      commands = append(commands, strings.Join(optString, ""))
+//      optString = append(optString, strings.Join(pluString, " "))
+//      pl("optString: ", optString)
     }
-*/
-
-    // per plugin command strings
-    //for _, plugin := range c.Modules {
-    //  pluginArr := convertStruct(plugin)
-    //  pl(pluginArr)
-      //pl(plugin)
-    //}
-
-//  }
+//    commands = append(commands, strings.Join(optString, ""))
+  }
 
   return commands
 }
 
 
-
 func main() {
   options, plugins := input()
+  dumpFiles := findDumps(options)
+  cmds := buildCommands(dumpFiles, options, plugins)
 
-  pl("")
-  pl("options: ", options)
-  pl("")
-  pl("plugins: ", plugins)
-
-//  verifyConfig(c)
-//  c.buildCommands(c.findDumps())
+  for _, v := range cmds {
+    pl("")
+    pl(v)
+  }
 }
 
 
