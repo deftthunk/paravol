@@ -3,21 +3,21 @@ package main
 import (
   "fmt"
   "os"
+  "os/exec"
   "strings"
   "reflect"
   "path/filepath"
   "io/ioutil"
   "gopkg.in/yaml.v2"
+  "runtime"
+  "strconv"
   "log"
 //  "github.com/goinggo/tracelog"
 )
 
-var curParentDir string = ""
-var curFilename string = ""
-var fullFilepath string = ""
 var pl = fmt.Println
 var pf = fmt.Printf
-var sp = fmt.Sprint
+var spf = fmt.Sprintf
 
 
 /* grab YAML file and decode into structs */
@@ -74,7 +74,7 @@ func input() (map[string]string, []map[string]string) {
 
         // map[interface]interface
         for kPlu, vPlu := range k {
-          pl("I/V: ", reflect.ValueOf(kPlu), reflect.ValueOf(vPlu))
+//          pl("I/V: ", reflect.ValueOf(kPlu), reflect.ValueOf(vPlu))
           tmpMap[kPlu.(string)] = vPlu.(string)
         }
         plugins = append(plugins, tmpMap)
@@ -106,7 +106,7 @@ func findDumps(options map[string]string) [][]string {
     fi, err := os.Stat(path)
 
     if err != nil {
-      pl("os.Stat(): Error on path ", path)
+      log.Fatalf("os.Stat(): Error on %v", path)
       pl("Error: ", err.Error())
       if os.IsNotExist(err) {
         pl("Folder does not exist")
@@ -139,6 +139,8 @@ func findDumps(options map[string]string) [][]string {
 }
 
 
+/* add hyphens to option flags */
+
 func fixField(f string) string {
   hyphens := "--" + f
   return hyphens
@@ -147,24 +149,24 @@ func fixField(f string) string {
 
 /*  build volatility command for each memory dump */
 
-func buildCommands(dumpFiles [][]string, opt map[string]string, plu []map[string]string) []string {
-  var commands []string
+func buildCommands(dumpFiles [][]string, opt map[string]string, plu []map[string]string) [][]string {
+  var commands [][]string
 
   for _, pathArr := range dumpFiles {
     var optString []string
 
-    // basic command info
+    // basic command info; sprintf() related vol flag/value pairs
     optString = append(optString,
-      "vol.py",
-      " --profile=", opt["profile"],
-      " --filename=", strings.Join(pathArr, "/"),
-      " --verbose",
+      spf("%s%s", "--profile=", opt["profile"]),
+      spf("%s%s", "--filename=", strings.Join(pathArr, "/")),
+      "--verbose",
     )
 
     // iterate through supplied plugin maps in 'plu' slice
     for _, pMap := range plu {
       var pluString []string
       var interString []string
+
       // create plugin string place plugin name in front of its options
       pluString = append(pluString, pMap["plugin"])
 
@@ -172,29 +174,40 @@ func buildCommands(dumpFiles [][]string, opt map[string]string, plu []map[string
       for field, val := range pMap {
         // skip re-adding the plugin name
         if field == "plugin" { continue }
-        hField := fixField(field)
+        hyField := fixField(field)
         var newStr string
 
         if val != "" {
-          str := []string{hField, val}
+          str := []string{hyField, val}
           newStr = strings.Join(str, "=")
         } else {
-          newStr = hField
+          newStr = hyField
         }
-        pluString = append(pluString, newStr)
-//        pl("pluString: ", pluString)
-      }
-      interString = append(interString,
-        strings.Join(optString, ""),
-        " ",
-        strings.Join(pluString, " "),
-      )
 
-      commands = append(commands, strings.Join(interString, ""))
+        // append each plugin option to pluString array
+        pluString = append(pluString, newStr)
+      }
+      interString = append(interString, optString...)
+      interString = append(interString, pluString...)
+
+      commands = append(commands, interString)
     }
   }
 
   return commands
+}
+
+
+/* act as a Go thread to execute shell commands */
+
+func manager(ch chan string, volPath string, cStr []string) {
+  result, err := exec.Command(volPath, cStr...).CombinedOutput()
+
+  if err != nil {
+    log.Fatalf("error: %v", err)
+  } else {
+    ch<-string(result)
+  }
 }
 
 
@@ -203,21 +216,44 @@ func main() {
   dumpFiles := findDumps(options)
   cmds := buildCommands(dumpFiles, options, plugins)
 
-  for _, v := range cmds {
-    pl("")
-    pl(v)
+  // set go thread support
+  threads, _ := strconv.Atoi(options["threads"])
+  volPath := options["vol-name"]
+  ch := make(chan string, len(cmds))
+  _ = runtime.GOMAXPROCS(threads)
+
+  cmdIndex, kickoff := 0, 0
+  cmdCount := len(cmds)
+
+  // ensure enough work for starting batch of threads
+  if threads >= cmdCount {
+    kickoff = cmdCount
+  } else {
+    kickoff = threads
+  }
+
+  // start workers
+  for i:=0; i<kickoff; i++ {
+    go manager(ch, volPath, cmds[cmdIndex])
+    cmdIndex++
+  }
+
+  /* for each iteration, wait for thread return. if there
+    is another command waiting for execution, kick it off,
+    and adjust the counter */
+  for i:=cmdCount; i>0; i-- {
+    select {
+      case ret := <-ch:
+        pl("DEBUG: Return", ret)
+
+        if cmdIndex < cmdCount {
+          pl("")
+          pl("DEBUG: kickoff!")
+          go manager(ch, volPath, cmds[cmdIndex])
+          cmdIndex++
+        }
+    }
   }
 }
-
-
-/*
-volatility example:
-python vol/vol.py --verbose --profile=Win10x64 -f /media/folder/dumps --output-file=/nhome/me/results malfind
-*/
-
-
-
-
-
 
 
