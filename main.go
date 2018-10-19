@@ -79,6 +79,20 @@ func input() (map[string]string, []map[string]string) {
         }
         plugins = append(plugins, tmpMap)
       }
+    } else if ta, ok := vOp.(int); ok {
+        options[kOp] = strings.Atoi(ta)
+        pl("DEBUG: vOp int:", options[kOp])
+    } else if ta, ok := vOp.(nil); ok {
+      select {
+        case kOp == "filename":
+          log.Fatal("Error: must specify 'filename' in Yaml config")
+        case kOp == "vol-name":
+          log.Fatal("Error: must specify 'vol-name' in Yaml config")
+        case kOp == "profile":
+          log.Fatal("Error: must specify 'profile' in Yaml config")
+        case kOp == "subfolders":
+          log.Fatal("Error: must specify 'subfolders' in Yaml config")
+      }
     } else {
       // catch anything else
       pl("what am i: ", reflect.TypeOf(vOp))
@@ -159,8 +173,9 @@ func buildCommands(dumpFiles [][]string, opt map[string]string, plu []map[string
     optString = append(optString,
       spf("%s%s", "--profile=", opt["profile"]),
       spf("%s%s", "--filename=", strings.Join(pathArr, "/")),
-      "--verbose",
     )
+//      "--verbose",
+//    )
 
     // iterate through supplied plugin maps in 'plu' slice
     for _, pMap := range plu {
@@ -217,7 +232,12 @@ func main() {
   cmds := buildCommands(dumpFiles, options, plugins)
 
   // set go thread support
-  threads, _ := strconv.Atoi(options["threads"])
+  if options["threads"] != nil {
+    threads, _ := strconv.Atoi(options["threads"])
+  } else {
+    threads := runtime.NumCPU()
+  }
+
   volPath := options["vol-name"]
   ch := make(chan string, len(cmds))
   _ = runtime.GOMAXPROCS(threads)
@@ -234,11 +254,12 @@ func main() {
 
   // start workers
   for i:=0; i<kickoff; i++ {
+    pl("starter", i)
     go manager(ch, volPath, cmds[cmdIndex])
     cmdIndex++
   }
 
-  /* for each iteration, wait for thread return. if there
+/*  for each iteration, wait for thread return. if there
     is another command waiting for execution, kick it off,
     and adjust the counter */
   for i:=cmdCount; i>0; i-- {

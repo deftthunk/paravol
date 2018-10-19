@@ -1,14 +1,40 @@
-# Comment test
-# hexadecimal, regex, integers, and blank values must be double quoted
+# hexadecimal, regex, and blank values must have double quotes
+# 
+# Format: 
+# 'full flag name: [value]...'
 ---
-threads: "3"
-profile: Win10x64-17134
-kdbg: "0x4040404"
-dtb: "0x494949"
+# name or path of volatility script 
+vol-name: /usr/local/bin/vol.py
+
+# concurrent plugins to run
+threads: "20"
+
+# only one profile allowed
+profile: WinXPSP2x86
+
+# speeds up processing; leave blank if unsure
+kdbg: "0x0"
+dtb: "0x0"
+
+# dump folders; subfolders will be replicated in output folder
 subfolders: base installed removed
+
+# parent folder of mem dump(s)
 memdumps: /home/bruce/temp/paravol/wd/data/vbox
+
+#
 output: /home/bruce/temp/paravol/wd/data/vol
-proc-pid: &pid "8192"
+
+# useful for referencing globally; default leave blank
+proc-pid: &pid "1352"
+
+# plugin name followed by plugin specific flags/values
+# 
+# Format:
+# <TAB> - plugin: [plugin name]
+#         pluginflag: [value]...
+#         pluginflag: ""
+# 
 plugins:
   - plugin: amcache
     hive-offset: "0x401000"
