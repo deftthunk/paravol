@@ -43,17 +43,17 @@ plugins:
     offset: "0x401000"
     pid: *pid
     name: pname
-    fix: ""
-    quick: ""
-    no-whitelist: ""
-    skip-kernel: ""
-    skip-process: ""
+    fix: 
+    quick: 
+    no-whitelist: 
+    skip-kernel: 
+    skip-process: 
 
   - plugin: atoms
 
   - plugin: atomscan
-    virtual: ""
-    show-unallocated: ""
+    virtual: 
+    show-unallocated: 
     start-address: "0x100"
     length: "0x100"
     offset: "0x1000"
@@ -70,7 +70,7 @@ plugins:
     max-history: "50"
 
   - plugin: connections
-    physical-offset: ""
+    physical-offset: 
 
   - plugin: consoles
     history-buffers: "4"
@@ -78,27 +78,27 @@ plugins:
   - plugin: dlldump
     dump-dir: path/to/dump
     regex: "[Rr]egex"
-    ignore-case: ""
+    ignore-case: 
     base: "0x0000"
 
   - plugin: drivermodule
     addr: "0x000"
 
   - plugin: dumpcerts
-    ssl: ""
-    physical: ""
+    ssl: 
+    physical: 
 
   - plugin: dumpfiles
     physoffset: "1234"
     summary-file: filename
-    unsafe: ""
+    unsafe: 
     filter: val1,val2,val3
 
   - plugin: dumpregistry
     hive-offset: "0x1234"
 
   - plugin: envars
-    silent: ""
+    silent: 
 
   - plugin: handles
     object-type: type1,type2,type3
@@ -109,67 +109,67 @@ plugins:
   - plugin: imagecopy
     blocksize: "52500"
     output-image: imageName
-    count: ""
+    count: 
 
   - plugin: impscan
     size: "54321"
 
   - plugin: joblinks
-    physical-offset: ""
+    physical-offset: 
 
   - plugin: lsadump
     sec-offset: "0x010101"
 
   - plugin: malfind
     max-size: "12345"
-    refined: ""
+    refined: 
   
   - plugin: mbrparser
-    hex: ""
+    hex: 
     hash: 6acc9fad5481
     fullhash: 6aac9fad
     disoffset: "12345"
-    nocheck: ""
+    nocheck: 
     disk: string
     maxdistance: "12345"
-    zerostart: ""
+    zerostart: 
 
   - plugin: mftparser
-    nocheck: ""
+    nocheck: 
     machine: machineName
-    debugout: ""
+    debugout: 
 
   - plugin: moddump
-    unsafe: ""
-    memory: ""
+    unsafe: 
+    memory: 
 
   - plugin: modscan
-    virtual: ""
+    virtual: 
 
   - plugin: mutantscan
-    silent: ""
+    silent: 
 
   - plugin: poolpeek
     tag: tag
     min-size: "01234"
-    paged: ""
+    paged: 
 
   - plugin: printkey
     key: reg/key
 
   - plugin: psxview
-    apply-rules: ""
+    apply-rules: 
 
   - plugin: raw2dmp
     output-image: imageName
 
   - plugin: strings
     string-file: filename
-    scan: ""
-    lookup-pid: ""
+    scan: 
+    lookup-pid: 
    
   - plugin: threads
-    listtags: ""
+    listtags: 
     
   - plugin: timeliner
     hive: hive
@@ -180,13 +180,13 @@ plugins:
     listhead: "0x8383"
     
   - plugin: userhandles
-    free: ""
+    free: 
     
   - plugin: yarascan
-    all: ""
-    case: ""
-    kernel: ""
-    wide: ""
+    all: 
+    case: 
+    kernel: 
+    wide: 
     yara-rules: a string
     yara-file: filename
     reverse: "01234"

@@ -22,19 +22,30 @@ var spf = fmt.Sprintf
 
 /* grab YAML file and decode into structs */
 
-func input() (map[string]string, []map[string]string) {
+func input() (map[string]string, []map[string]string, map[string]bool) {
   var cfgMap map[string]interface{}
   var options map[string]string
   var plugins []map[string]string
+  var flags   map[string]bool
+
+  flags = make(map[string]bool, 10)
 
   // count and parse CLI args
-  if len(os.Args) < 1 {
-    pl("Missing path to config.yaml")
+  if len(os.Args) < 2 {
+    pl("\nUsage: paravol [OPTIONS] configfile\n")
+    pl("Options:")
+    pl("\t-p, --print-commands")
+    pl("\t\tdoes not execute; instead prints out vol commands")
+
     os.Exit(1)
+  } else {
+    if os.Args[1] == "-p" || os.Args[1] == "--print-commands" {
+      flags["print"] = true
+    }
   }
 
   // open config
-  cfgFile, err := ioutil.ReadFile(os.Args[1])
+  cfgFile, err := ioutil.ReadFile(os.Args[len(os.Args)-1])
   if err != nil {
     log.Fatal(err)
   }
@@ -75,23 +86,29 @@ func input() (map[string]string, []map[string]string) {
         // map[interface]interface
         for kPlu, vPlu := range k {
 //          pl("I/V: ", reflect.ValueOf(kPlu), reflect.ValueOf(vPlu))
-          tmpMap[kPlu.(string)] = vPlu.(string)
+          if vPlu == nil {
+            tmpMap[kPlu.(string)] = ""
+          } else {
+            tmpMap[kPlu.(string)] = vPlu.(string)
+          }
         }
         plugins = append(plugins, tmpMap)
       }
     } else if ta, ok := vOp.(int); ok {
-        options[kOp] = strings.Atoi(ta)
+        options[kOp] = strconv.Itoa(ta)
         pl("DEBUG: vOp int:", options[kOp])
-    } else if ta, ok := vOp.(nil); ok {
-      select {
+    } else if vOp == nil {
+      switch {
         case kOp == "filename":
-          log.Fatal("Error: must specify 'filename' in Yaml config")
+          log.Fatalf("Error: must specify %s in Yaml config", kOp)
         case kOp == "vol-name":
-          log.Fatal("Error: must specify 'vol-name' in Yaml config")
+          log.Fatalf("Error: must specify %s in Yaml config", kOp)
         case kOp == "profile":
-          log.Fatal("Error: must specify 'profile' in Yaml config")
+          log.Fatalf("Error: must specify %s in Yaml config", kOp)
         case kOp == "subfolders":
-          log.Fatal("Error: must specify 'subfolders' in Yaml config")
+          log.Fatalf("Error: must specify %s in Yaml config", kOp)
+        default:
+          options[kOp] = ""
       }
     } else {
       // catch anything else
@@ -99,7 +116,7 @@ func input() (map[string]string, []map[string]string) {
     }
   }
 
-  return options, plugins
+  return options, plugins, flags
 }
 
 
@@ -174,8 +191,6 @@ func buildCommands(dumpFiles [][]string, opt map[string]string, plu []map[string
       spf("%s%s", "--profile=", opt["profile"]),
       spf("%s%s", "--filename=", strings.Join(pathArr, "/")),
     )
-//      "--verbose",
-//    )
 
     // iterate through supplied plugin maps in 'plu' slice
     for _, pMap := range plu {
@@ -227,20 +242,29 @@ func manager(ch chan string, volPath string, cStr []string) {
 
 
 func main() {
-  options, plugins := input()
+  options, plugins, flags := input()
   dumpFiles := findDumps(options)
   cmds := buildCommands(dumpFiles, options, plugins)
 
-  // set go thread support
-  if options["threads"] != nil {
-    threads, _ := strconv.Atoi(options["threads"])
-  } else {
-    threads := runtime.NumCPU()
-  }
-
+  var threads int = 0
   volPath := options["vol-name"]
   ch := make(chan string, len(cmds))
   _ = runtime.GOMAXPROCS(threads)
+
+  // if flag set on CLI, print out commands rather than executing them
+  if flags["print"] {
+    for i:=0; i<(len(cmds)-1); i++ {
+      pl(volPath, strings.Join(cmds[i], " "))
+    }
+    os.Exit(0)
+  }
+
+  // set go thread support
+  if options["threads"] != "" {
+    threads, _ = strconv.Atoi(options["threads"])
+  } else {
+    threads = runtime.NumCPU()
+  }
 
   cmdIndex, kickoff := 0, 0
   cmdCount := len(cmds)
@@ -254,7 +278,6 @@ func main() {
 
   // start workers
   for i:=0; i<kickoff; i++ {
-    pl("starter", i)
     go manager(ch, volPath, cmds[cmdIndex])
     cmdIndex++
   }
@@ -268,8 +291,6 @@ func main() {
         pl("DEBUG: Return", ret)
 
         if cmdIndex < cmdCount {
-          pl("")
-          pl("DEBUG: kickoff!")
           go manager(ch, volPath, cmds[cmdIndex])
           cmdIndex++
         }
