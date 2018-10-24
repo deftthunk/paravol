@@ -1,32 +1,37 @@
-# hexadecimal, regex, and blank values must have double quotes
-# 
-# Format: 
-# 'full flag name: [value]...'
----
-# name or path of volatility script 
-vol-name: /usr/local/bin/vol.py
+## hexadecimal, regex, and blank values must have double quotes
+## 
+## Format: 
+## 'full flag name: [value]...'
+ 
+## name or path of volatility script 
+_vol-name: /usr/local/bin/vol.py
 
-# concurrent plugins to run
-threads: "20"
+## concurrent plugins to run
+_threads: 4
 
-# only one profile allowed
+## only one profile allowed
 profile: WinXPSP2x86
 
-# speeds up processing; leave blank if unsure
-kdbg: "0x0"
-dtb: "0x0"
+## speeds up processing; leave blank if unsure
+#kdbg: "0x0"
+#dtb: "0x0"
 
-# dump folders; subfolders will be replicated in output folder
-subfolders: base installed removed
+## dump folders; subfolders will be replicated in output folder
+_subfolders: base installed removed
 
-# parent folder of mem dump(s)
-memdumps: /home/bruce/temp/paravol/wd/data/vbox
+## parent folder of mem dump(s)
+_memdumps: /home/bruce/temp/paravol/wd/data/vbox
 
-#
-output: /home/bruce/temp/paravol/wd/data/vol
+## add more information to output
+#verbose: 
 
-# useful for referencing globally; default leave blank
-proc-pid: &pid "1352"
+## parent folder for plugin output (ends up as --output-file with
+## the path including the concatenation of thie path and _subfolders);
+## comment out if STDOUT desired
+_output_folder: /home/bruce/temp/paravol/wd/data/vol
+
+## useful for referencing globally; default leave blank
+_proc-pid: &pid "1352"
 
 # plugin name followed by plugin specific flags/values
 # 

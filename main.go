@@ -12,7 +12,7 @@ import (
   "runtime"
   "strconv"
   "log"
-//  "github.com/goinggo/tracelog"
+  "regexp"
 )
 
 var pl = fmt.Println
@@ -69,7 +69,6 @@ func input() (map[string]string, []map[string]string, map[string]bool) {
   for kOp, vOp := range cfgMap {
     // distinguish string values from arrays
     if ta, ok := vOp.(string); ok && ta != "" {
-//      pl("key: ", kOp, "val: ", ta)
       options[kOp] = ta
     } else if ta, ok := vOp.([]interface{}); ok {
       // iterate over "Plugins:" sub-config array
@@ -80,12 +79,10 @@ func input() (map[string]string, []map[string]string, map[string]bool) {
       for _, cMap := range configArr {
         obj := reflect.ValueOf(cMap)
         tmpMap := make(map[string]string, obj.Len() - 1)
-//        pl("ValueOf: ", reflect.ValueOf(cMap))
         k := cMap.(map[interface{}]interface{})
 
         // map[interface]interface
         for kPlu, vPlu := range k {
-//          pl("I/V: ", reflect.ValueOf(kPlu), reflect.ValueOf(vPlu))
           if vPlu == nil {
             tmpMap[kPlu.(string)] = ""
           } else {
@@ -96,16 +93,15 @@ func input() (map[string]string, []map[string]string, map[string]bool) {
       }
     } else if ta, ok := vOp.(int); ok {
         options[kOp] = strconv.Itoa(ta)
-        pl("DEBUG: vOp int:", options[kOp])
     } else if vOp == nil {
       switch {
-        case kOp == "filename":
+        case kOp == "_filename":
           log.Fatalf("Error: must specify %s in Yaml config", kOp)
-        case kOp == "vol-name":
+        case kOp == "_vol-name":
           log.Fatalf("Error: must specify %s in Yaml config", kOp)
         case kOp == "profile":
           log.Fatalf("Error: must specify %s in Yaml config", kOp)
-        case kOp == "subfolders":
+        case kOp == "_subfolders":
           log.Fatalf("Error: must specify %s in Yaml config", kOp)
         default:
           options[kOp] = ""
@@ -123,9 +119,10 @@ func input() (map[string]string, []map[string]string, map[string]bool) {
 /*  returns 2D array of dumpfiles in the format of 
     [[path, filename] [path, filename]] */
 
-func findDumps(options map[string]string) [][]string {
+func findDumps(options map[string]string) ([][]string, []string) {
   // [[path, filename] [path, filename]]
   dumpFiles := make([][]string, 0)
+  outputPath := make([]string, 0)
   var fullFilepath string
   var curFilename string
   var curParentDir string
@@ -137,7 +134,7 @@ func findDumps(options map[string]string) [][]string {
     fi, err := os.Stat(path)
 
     if err != nil {
-      log.Fatalf("os.Stat(): Error on %v", path)
+      log.Fatalf("os.Stat(): Error with path %v", path)
       pl("Error: ", err.Error())
       if os.IsNotExist(err) {
         pl("Folder does not exist")
@@ -155,18 +152,22 @@ func findDumps(options map[string]string) [][]string {
   }
 
   // each file/dir is passed to walkFunc
-  subFolders := strings.Fields(options["subfolders"])
+  subFolders := strings.Fields(options["_subfolders"])
 
   for _, s := range subFolders {
-    memDumpPath := filepath.Join(options["memdumps"], s)
+    memDumpPath := filepath.Join(options["_memdumps"], s)
     err := filepath.Walk(memDumpPath, walkFunc)
 
     if err != nil {
       log.Fatalf("Error: %v", err)
     }
+
+    // build (partial) output paths while we're at it
+    out := filepath.Join(options["_output_folder"], s)
+    outputPath = append(outputPath, out)
   }
 
-  return dumpFiles
+  return dumpFiles, outputPath
 }
 
 
@@ -180,24 +181,58 @@ func fixField(f string) string {
 
 /*  build volatility command for each memory dump */
 
-func buildCommands(dumpFiles [][]string, opt map[string]string, plu []map[string]string) [][]string {
+func buildCommands(dumpFiles [][]string, outputPath []string,
+  opt map[string]string, plu []map[string]string,
+  flags map[string]bool) [][]string {
+
   var commands [][]string
 
-  for _, pathArr := range dumpFiles {
+  for dIndex,pathArr := range dumpFiles {
     var optString []string
 
-    // basic command info; sprintf() related vol flag/value pairs
+    // make plugins first argument if it exists
+    if val,ok := opt["_comm_plugins"]; ok {
+      optString = append(optString, spf("%s%s", "--plugins=", val))
+    }
     optString = append(optString,
-      spf("%s%s", "--profile=", opt["profile"]),
       spf("%s%s", "--filename=", strings.Join(pathArr, "/")),
     )
+
+    // iterate throguh supplied vol options map in 'opt' slice
+    for field,val := range opt {
+      // catch and skip over script config params that start with an '_'
+      match,err := regexp.MatchString("^_.*", field)
+      if err != nil {
+        log.Fatalf("error: %v", err)
+      }
+      if match { continue }
+      hyField := fixField(field)
+      var newStr string
+
+      // handle empty string values
+      if val != "" {
+        str := []string{hyField, val}
+        newStr = strings.Join(str, "=")
+      } else {
+        newStr = hyField
+      }
+      optString = append(optString, newStr)
+    }
 
     // iterate through supplied plugin maps in 'plu' slice
     for _, pMap := range plu {
       var pluString []string
       var interString []string
 
-      // create plugin string place plugin name in front of its options
+      // finish output path using plugin name for destination folder
+      fullOutPath := filepath.Join(outputPath[dIndex], pMap["plugin"])
+      outStr := spf("%s%s", "--output-file=", fullOutPath)
+      pluString = append(pluString, outStr)
+      // ensure base path exists or create it
+      if ! flags["print"] {
+        os.MkdirAll(filepath.Dir(fullOutPath), 0755)
+      }
+      // create plugin string; place plugin name in front of its options
       pluString = append(pluString, pMap["plugin"])
 
       // add plugin options to command string
@@ -243,25 +278,26 @@ func manager(ch chan string, volPath string, cStr []string) {
 
 func main() {
   options, plugins, flags := input()
-  dumpFiles := findDumps(options)
-  cmds := buildCommands(dumpFiles, options, plugins)
+  dumpFiles, outputPath := findDumps(options)
+  cmds := buildCommands(dumpFiles, outputPath, options, plugins, flags)
 
   var threads int = 0
-  volPath := options["vol-name"]
+  volPath := options["_vol-name"]
   ch := make(chan string, len(cmds))
   _ = runtime.GOMAXPROCS(threads)
 
   // if flag set on CLI, print out commands rather than executing them
   if flags["print"] {
-    for i:=0; i<(len(cmds)-1); i++ {
+    for i:=0; i<(len(cmds)); i++ {
       pl(volPath, strings.Join(cmds[i], " "))
+      pl("")
     }
     os.Exit(0)
   }
 
   // set go thread support
-  if options["threads"] != "" {
-    threads, _ = strconv.Atoi(options["threads"])
+  if options["_threads"] != "" {
+    threads, _ = strconv.Atoi(options["_threads"])
   } else {
     threads = runtime.NumCPU()
   }
@@ -285,10 +321,11 @@ func main() {
 /*  for each iteration, wait for thread return. if there
     is another command waiting for execution, kick it off,
     and adjust the counter */
+
   for i:=cmdCount; i>0; i-- {
     select {
       case ret := <-ch:
-        pl("DEBUG: Return", ret)
+        pl(ret)
 
         if cmdIndex < cmdCount {
           go manager(ch, volPath, cmds[cmdIndex])
